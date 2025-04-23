@@ -1,0 +1,12 @@
+2025-04-23 17:11:10.091611 - [Binance] -0.331% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.6873424508348
+2025-04-23 17:11:10.091611 - [KuCoin] -0.308% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.9243269240241
+2025-04-23 17:11:10.091611 - [Bitfinex] -0.185% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 998.1529732041278
+2025-04-23 17:11:10.091611 - [Kraken] -0.267% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 997.329186335954
+2025-04-23 17:11:10.091611 - [Coinbase Advanced] -0.341% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.588265089323
+2025-04-23 17:11:10.091611 - [HTX] -0.342% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.5844028653514
+2025-04-23 17:11:23.448767 - [Binance] -0.306% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.93650780066
+2025-04-23 17:11:23.448767 - [KuCoin] -0.290% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 997.0961377814241
+2025-04-23 17:11:23.448767 - [Bitfinex] -0.249% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 997.5073201427883
+2025-04-23 17:11:23.448767 - [Kraken] -0.277% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 997.232877572613
+2025-04-23 17:11:23.448767 - [Coinbase Advanced] -0.310% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.8967437510958
+2025-04-23 17:11:23.448767 - [HTX] -0.345% via USDT → BTC → ETH → USDT | Profitable: False | Final Amount: 996.5525379633569

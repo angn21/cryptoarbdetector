@@ -35,39 +35,46 @@ def get_ticker(exchange, symbol):
         print(f"Error fetching ticker for {symbol} from {exchange.name}: {e}")
         return None
 
-# Detect triangular arbitrage on a given exchange
+
 def detect_triangular_arb(exchange, base='USDT'):
-    symbols = ['BTC/USDT', 'ETH/USDT', 'ETH/BTC']
-    tickers = {s: get_ticker(exchange, s) for s in symbols}
-
-    if any(t is None for t in tickers.values()):
-        return None  # skip if any ticker is missing
-
+    required_symbols = ['BTC/USDT', 'ETH/USDT', 'ETH/BTC']
+    
     try:
-        start_amount = 1000  # Starting amount in USDT
+        # Load markets if not already loaded
+        if not hasattr(exchange, 'markets') or not exchange.markets:
+            exchange.load_markets()
+        
+        # Only use symbols that exist on the exchange
+        available_symbols = [s for s in required_symbols if s in exchange.symbols]
 
-        # Step 1: USDT → BTC
-        usdt_to_btc = start_amount / tickers['BTC/USDT']['ask']  # use ask price to buy BTC
+        if len(available_symbols) < 3:
+            print(f"[DEBUG] {exchange.name} missing required pairs: {set(required_symbols) - set(available_symbols)}")
+            return None
 
-        # Step 2: BTC → ETH
-        btc_to_eth = usdt_to_btc / tickers['ETH/BTC']['ask']  # use ask to buy ETH
+        tickers = {s: get_ticker(exchange, s) for s in required_symbols}
 
-        # Step 3: ETH → USDT
-        eth_to_usdt = btc_to_eth * tickers['ETH/USDT']['bid']  # use bid to sell ETH
+        if any(t is None for t in tickers.values()):
+            return None
+
+        start_amount = 1000
+        taker_fee = 0.999
+
+        # Triangular arbitrage logic
+        usdt_to_btc = (start_amount / tickers['BTC/USDT']['ask']) * taker_fee
+        btc_to_eth = (usdt_to_btc / tickers['ETH/BTC']['ask']) * taker_fee
+        eth_to_usdt = (btc_to_eth * tickers['ETH/USDT']['bid']) * taker_fee
 
         profit = eth_to_usdt - start_amount
-        profit_percent = (profit / start_amount) * 100  # Fixed logic here
+        profit_percent = (profit / start_amount) * 100
 
-        if profit > 0:
-            return {
-                'exchange': exchange.name,
-                'start_amount': start_amount,
-                'final_amount': eth_to_usdt,
-                'profit': profit,
-                'profit_percent': profit_percent,
-                'path': 'USDT → BTC → ETH → USDT'
-            }
-        return None
+        return {
+            'exchange': exchange.name,
+            'start_amount': start_amount,
+            'final_amount': eth_to_usdt,
+            'profit': profit,
+            'profit_percent': profit_percent,
+            'path': 'USDT → BTC → ETH → USDT'
+        }
     except Exception as e:
         print(f"Error during triangle calc on {exchange.name}: {e}")
         return None
@@ -88,8 +95,8 @@ def fetch_arbitrage_opportunity():
         spreads['Coinbase'] = (binance_price - coinbase_price) / coinbase_price * 100
         spreads['Kraken'] = (binance_price - kraken_price) / kraken_price * 100
         spreads['Bitfinex'] = (binance_price - bitfinex_price) / bitfinex_price * 100
-        spreads['Huobi'] = (binance_price - huobi_price) / huobi_price * 100  # Spread for Huobi
-        spreads['KuCoin'] = (binance_price - kucoin_price) / kucoin_price * 100  # Spread for KuCoin
+        spreads['Huobi'] = (binance_price - huobi_price) / huobi_price * 100  
+        spreads['KuCoin'] = (binance_price - kucoin_price) / kucoin_price * 100 
 
         # Output the prices and spreads
         print(f"Binance: {binance_price} | Coinbase: {coinbase_price} | Kraken: {kraken_price} | Bitfinex: {bitfinex_price}")
@@ -218,21 +225,52 @@ def update_plot(frame):
         ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=False, prune='both', nbins=6))
         ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda x, _: f'{x:.2f}%'))
     
-    # Triangular arbitrage detection
-    for ex in [binance, kucoin, bitfinex]:
+        # Triangular arbitrage detection
+    all_attempts = []  # Store all attempts to find the best one
+    log_lines = []     # Store all lines to log at once per timestamp
+    timestamp = pd.Timestamp.now()
+
+    for ex in [binance, kucoin, bitfinex, kraken, coinbase, huobi]:
         triangle = detect_triangular_arb(ex)
-    if triangle:
-        print(f"[Triangular Arb] {triangle['exchange']}: {triangle['profit_percent']:.3f}% via {triangle['path']}")
-        # Optionally save to CSV
-        triangle_log = {
-            'timestamp': pd.Timestamp.now(),
-            'exchange': triangle['exchange'],
-            'path': triangle['path'],
-            'profit_percent': triangle['profit_percent'],
-            'final_amount': triangle['final_amount']
-        }
-        pd.DataFrame([triangle_log]).to_csv(
-            os.path.join(csv_folder, 'triangular_arbs.csv'), mode='a', header=not os.path.exists(os.path.join(csv_folder, 'triangular_arbs.csv')), index=False
+        #print(f"[DEBUG] {ex.name} triangle result: {triangle}")
+
+        if triangle:
+            profit_percent = triangle['profit_percent']
+            final_amount = triangle['final_amount']
+            path = triangle['path']
+            exchange = triangle['exchange']
+            profitable = profit_percent > 0
+
+            all_attempts.append({
+                'timestamp': timestamp,
+                'exchange': exchange,
+                'path': path,
+                'profit_percent': profit_percent,
+                'final_amount': final_amount,
+                'profitable': profitable
+            })
+
+            log_lines.append(
+                f"{timestamp} - [{exchange}] {profit_percent:.3f}% via {path} | "
+                f"Profitable: {profitable} | Final Amount: {final_amount}"
+            )
+        else:
+            log_lines.append(f"{timestamp} - [{ex.name}] No arbitrage opportunity found.")
+            print(f"[DEBUG] No arbitrage found on {ex.name}")
+
+    # Log all exchange attempts to TXT
+    txt_path = os.path.join(csv_folder, 'triangular_arb_log.txt')
+    with open(txt_path, 'a', encoding='utf-8') as f:
+        f.write("\n".join(log_lines) + "\n")
+
+    # Save only the best attempt to CSV if any were found
+    if all_attempts:
+        best = max(all_attempts, key=lambda x: x['profit_percent'])  # Even if negative
+        pd.DataFrame([best]).to_csv(
+            os.path.join(csv_folder, 'triangular_arbs.csv'), 
+            mode='a', 
+            header=not os.path.exists(os.path.join(csv_folder, 'triangular_arbs.csv')), 
+            index=False
         )
 
 
